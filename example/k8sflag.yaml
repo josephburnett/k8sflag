@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hello-config
+data:
+  hello.name: "world"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hello-pod
+spec:
+  containers:
+    - name: hello-container
+      image: josephburnett/k8sflag-hello
+      ports:
+        - containerPort: 8080
+      volumeMounts:
+        - name: hello-config-volume
+          mountPath: /etc/config
+  volumes:
+    - name: hello-config-volume
+      configMap:
+        name: hello-config
