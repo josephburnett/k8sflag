@@ -90,7 +90,7 @@ func String(path, value string) *StringFlag {
 func (f *StringFlag) refresh(b []byte) {
 	s := string(b)
 	f.value.Store(s)
-	log.Printf("Set config ? to %v.", s)
+	log.Printf("Set config to %v.", s)
 }
 
 func (f *StringFlag) Get() string {
