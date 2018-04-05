@@ -13,6 +13,7 @@ spec:
   containers:
     - name: hello-container
       image: josephburnett/k8sflag-hello
+      imagePullPolicy: Always
       ports:
         - containerPort: 8080
       volumeMounts:
