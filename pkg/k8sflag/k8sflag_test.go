@@ -146,6 +146,32 @@ func TestBoolEmpty(t *testing.T) {
 	}
 }
 
+func TestIntValid(t *testing.T) {
+	config, dir := tempConfigMap()
+	defer os.RemoveAll(dir)
+	writeConfig(dir, "count", "1")
+
+	flag := config.Int("count", 0)
+
+	count := flag.Get()
+	if count != 1 {
+		t.Fatalf("Incorrect count. Wanted 1. Got %v.", count)
+	}
+}
+
+func TestIntInvalid(t *testing.T) {
+	config, dir := tempConfigMap()
+	defer os.RemoveAll(dir)
+	writeConfig(dir, "count", "wrong")
+
+	flag := config.Int("count", 0)
+
+	count := flag.Get()
+	if count != 0 {
+		t.Fatalf("Incorrect count. Wanted 0. Got %v.", count)
+	}
+}
+
 func tempConfigMap() (*ConfigMap, string) {
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {

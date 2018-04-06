@@ -97,8 +97,8 @@ func (c *ConfigMap) String(path string, def string) *StringFlag {
 	return s
 }
 
-func String(path, value string) *StringFlag {
-	return defaultConfigMap.String(path, value)
+func String(path, def string) *StringFlag {
+	return defaultConfigMap.String(path, def)
 }
 
 func (f *StringFlag) set(b []byte) {
@@ -130,8 +130,8 @@ func (c *ConfigMap) Bool(path string, def bool) *BoolFlag {
 	return b
 }
 
-func Bool(path string, value bool) *BoolFlag {
-	return defaultConfigMap.Bool(path, value)
+func Bool(path string, def bool) *BoolFlag {
+	return defaultConfigMap.Bool(path, def)
 }
 
 func (f *BoolFlag) set(bytes []byte) {
@@ -151,4 +151,41 @@ func (f *BoolFlag) setDefault() {
 
 func (f *BoolFlag) Get() bool {
 	return f.value.Load().(bool)
+}
+
+type IntFlag struct {
+	value atomic.Value
+	def   int
+}
+
+func (c *ConfigMap) Int(path string, def int) *IntFlag {
+	i := &IntFlag{
+		def: def,
+	}
+	i.value.Store(def)
+	c.register(path, flag(i))
+	return i
+}
+
+func Int(path string, def int) *IntFlag {
+	return defaultConfigMap.Int(path, def)
+}
+
+func (f *IntFlag) set(bytes []byte) {
+	s := string(bytes)
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		log.Printf("Error parsing int %v: %v", s, err)
+		return
+	}
+	f.value.Store(i)
+	log.Printf("Set value to %v.", i)
+}
+
+func (f *IntFlag) setDefault() {
+	f.value.Store(f.def)
+}
+
+func (f *IntFlag) Get() int {
+	return f.value.Load().(int)
 }
