@@ -3,6 +3,7 @@ package k8sflag
 import (
 	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"strconv"
 	"sync/atomic"
@@ -11,7 +12,8 @@ import (
 )
 
 type flag interface {
-	refresh([]byte)
+	set([]byte)
+	setDefault()
 }
 
 type ConfigMap struct {
@@ -36,20 +38,25 @@ func NewConfigMap(path string) *ConfigMap {
 			case event := <-c.watcher.Events:
 				f, ok := c.watches[event.Name]
 				if !ok {
-					log.Printf("Event for unknown flag %v.", event.Name)
+					log.Printf("No binding for %v.", event.Name)
 					continue
 				}
 				b, err := ioutil.ReadFile(event.Name)
 				if err != nil {
-					log.Printf("Error reading file: %v", err)
+					if os.IsNotExist(err) {
+						f.setDefault()
+					} else {
+						log.Printf("Error reading file: %v", err)
+					}
 					continue
 				}
-				f.refresh(b)
+				f.set(b)
 			case err := <-c.watcher.Errors:
 				log.Printf("Error event: %v", err)
 			}
 		}
 	}()
+	c.watcher.Add(path)
 	return c
 }
 
@@ -62,9 +69,13 @@ func (c *ConfigMap) register(path string, f flag) {
 	}
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Printf("No configuration for %v: %v", filename, err)
+		if os.IsNotExist(err) {
+			f.setDefault()
+		} else {
+			log.Printf("Error reading file: %v", err)
+		}
 	} else {
-		f.refresh(b)
+		f.set(b)
 	}
 	c.watches[filename] = f
 	c.watcher.Add(filename)
@@ -74,11 +85,14 @@ var defaultConfigMap = NewConfigMap("")
 
 type StringFlag struct {
 	value atomic.Value
+	def   string
 }
 
-func (c *ConfigMap) String(path string, value string) *StringFlag {
-	s := &StringFlag{}
-	s.value.Store(value)
+func (c *ConfigMap) String(path string, def string) *StringFlag {
+	s := &StringFlag{
+		def: def,
+	}
+	s.value.Store(def)
 	c.register(path, flag(s))
 	return s
 }
@@ -87,10 +101,15 @@ func String(path, value string) *StringFlag {
 	return defaultConfigMap.String(path, value)
 }
 
-func (f *StringFlag) refresh(b []byte) {
+func (f *StringFlag) set(b []byte) {
 	s := string(b)
 	f.value.Store(s)
 	log.Printf("Set config to %v.", s)
+}
+
+func (f *StringFlag) setDefault() {
+	f.value.Store(f.def)
+	log.Printf("Set to default: %v.", f.def)
 }
 
 func (f *StringFlag) Get() string {
@@ -99,11 +118,14 @@ func (f *StringFlag) Get() string {
 
 type BoolFlag struct {
 	value atomic.Value
+	def   bool
 }
 
-func (c *ConfigMap) Bool(path string, value bool) *BoolFlag {
-	b := &BoolFlag{}
-	b.value.Store(value)
+func (c *ConfigMap) Bool(path string, def bool) *BoolFlag {
+	b := &BoolFlag{
+		def: def,
+	}
+	b.value.Store(def)
 	c.register(path, flag(b))
 	return b
 }
@@ -112,7 +134,7 @@ func Bool(path string, value bool) *BoolFlag {
 	return defaultConfigMap.Bool(path, value)
 }
 
-func (f *BoolFlag) refresh(bytes []byte) {
+func (f *BoolFlag) set(bytes []byte) {
 	s := string(bytes)
 	b, err := strconv.ParseBool(s)
 	if err != nil {
@@ -121,6 +143,10 @@ func (f *BoolFlag) refresh(bytes []byte) {
 	}
 	f.value.Store(b)
 	log.Printf("Set value to %v.", b)
+}
+
+func (f *BoolFlag) setDefault() {
+	f.value.Store(f.def)
 }
 
 func (f *BoolFlag) Get() bool {
