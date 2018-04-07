@@ -3,4 +3,4 @@ kind: ConfigMap
 metadata:
   name: hello-config
 data:
-  hello.name: "joe"
+  hello.name: "world"
