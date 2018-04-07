@@ -11,6 +11,18 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+var Verbose = false
+
+func verbose(msg string, params ...interface{}) {
+	if Verbose {
+		log.Printf(msg, params...)
+	}
+}
+
+func info(msg string, params ...interface{}) {
+	log.Printf(msg, params...)
+}
+
 type flag interface {
 	set([]byte)
 	setDefault()
@@ -38,7 +50,7 @@ func NewFlagSet(path string) *FlagSet {
 			case event := <-c.watcher.Events:
 				f, ok := c.watches[event.Name]
 				if !ok {
-					log.Printf("No binding for %v.", event.Name)
+					verbose("No binding for %v.", event.Name)
 					continue
 				}
 				b, err := ioutil.ReadFile(event.Name)
@@ -46,13 +58,13 @@ func NewFlagSet(path string) *FlagSet {
 					if os.IsNotExist(err) {
 						f.setDefault()
 					} else {
-						log.Printf("Error reading file: %v", err)
+						verbose("Error reading file: %v", err)
 					}
 					continue
 				}
 				f.set(b)
 			case err := <-c.watcher.Errors:
-				log.Printf("Error event: %v", err)
+				verbose("Error event: %v", err)
 			}
 		}
 	}()
@@ -72,7 +84,7 @@ func (c *FlagSet) register(path string, f flag) {
 		if os.IsNotExist(err) {
 			f.setDefault()
 		} else {
-			log.Printf("Error reading file: %v", err)
+			verbose("Error reading file: %v", err)
 		}
 	} else {
 		f.set(b)
@@ -84,32 +96,34 @@ func (c *FlagSet) register(path string, f flag) {
 var defaultFlagSet = NewFlagSet("")
 
 type StringFlag struct {
+	key   string
 	value atomic.Value
 	def   string
 }
 
-func (c *FlagSet) String(path string, def string) *StringFlag {
+func (c *FlagSet) String(key string, def string) *StringFlag {
 	s := &StringFlag{
+		key: key,
 		def: def,
 	}
 	s.value.Store(def)
-	c.register(path, flag(s))
+	c.register(key, flag(s))
 	return s
 }
 
-func String(path, def string) *StringFlag {
-	return defaultFlagSet.String(path, def)
+func String(key, def string) *StringFlag {
+	return defaultFlagSet.String(key, def)
 }
 
 func (f *StringFlag) set(b []byte) {
 	s := string(b)
 	f.value.Store(s)
-	log.Printf("Set config to %v.", s)
+	info("Set StringFlag %v: %v.", f.key, s)
 }
 
 func (f *StringFlag) setDefault() {
 	f.value.Store(f.def)
-	log.Printf("Set to default: %v.", f.def)
+	info("Set StringFlag %v to default: %v.", f.key, f.def)
 }
 
 func (f *StringFlag) Get() string {
@@ -117,32 +131,34 @@ func (f *StringFlag) Get() string {
 }
 
 type BoolFlag struct {
+	key   string
 	value atomic.Value
 	def   bool
 }
 
-func (c *FlagSet) Bool(path string, def bool) *BoolFlag {
+func (c *FlagSet) Bool(key string, def bool) *BoolFlag {
 	b := &BoolFlag{
+		key: key,
 		def: def,
 	}
 	b.value.Store(def)
-	c.register(path, flag(b))
+	c.register(key, flag(b))
 	return b
 }
 
-func Bool(path string, def bool) *BoolFlag {
-	return defaultFlagSet.Bool(path, def)
+func Bool(key string, def bool) *BoolFlag {
+	return defaultFlagSet.Bool(key, def)
 }
 
 func (f *BoolFlag) set(bytes []byte) {
 	s := string(bytes)
 	b, err := strconv.ParseBool(s)
 	if err != nil {
-		log.Printf("Error parsing bool %v: %v", s, err)
+		verbose("Error parsing BoolFlag %v: %v", f.key, err)
 		return
 	}
 	f.value.Store(b)
-	log.Printf("Set value to %v.", b)
+	info("Set BoolFlag %v: %v.", f.key, b)
 }
 
 func (f *BoolFlag) setDefault() {
@@ -154,35 +170,38 @@ func (f *BoolFlag) Get() bool {
 }
 
 type IntFlag struct {
+	key   string
 	value atomic.Value
 	def   int
 }
 
-func (c *FlagSet) Int(path string, def int) *IntFlag {
+func (c *FlagSet) Int(key string, def int) *IntFlag {
 	i := &IntFlag{
+		key: key,
 		def: def,
 	}
 	i.value.Store(def)
-	c.register(path, flag(i))
+	c.register(key, flag(i))
 	return i
 }
 
-func Int(path string, def int) *IntFlag {
-	return defaultFlagSet.Int(path, def)
+func Int(key string, def int) *IntFlag {
+	return defaultFlagSet.Int(key, def)
 }
 
 func (f *IntFlag) set(bytes []byte) {
 	s := string(bytes)
 	i, err := strconv.Atoi(s)
 	if err != nil {
-		log.Printf("Error parsing int %v: %v", s, err)
+		verbose("Error parsing InfFlag %v: %v.", f.key, err)
 		return
 	}
 	f.value.Store(i)
-	log.Printf("Set value to %v.", i)
+	info("Set IntFlag %v: %v.", f.key, i)
 }
 
 func (f *IntFlag) setDefault() {
+	info("Set IntFlag %v to default: %v.", f.key, f.def)
 	f.value.Store(f.def)
 }
 
