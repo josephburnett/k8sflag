@@ -68,16 +68,14 @@ func NewFlagSet(path string) *FlagSet {
 			}
 		}
 	}()
-	c.watcher.Add(path)
+	c.watcher.Add(path) // Watch for new files
 	return c
 }
 
-func (c *FlagSet) register(path string, f flag) {
-	p := filepath.SplitList(path)
-	p = append(c.path, p...)
-	filename := filepath.Join(p...)
+func (c *FlagSet) register(key string, f flag) {
+	filename := filepath.Join(append(c.path, filepath.SplitList(key)...)...)
 	if _, ok := c.watches[filename]; ok {
-		panic("Flag already bound to " + filename)
+		panic("Flag already bound to " + key)
 	}
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -93,7 +91,7 @@ func (c *FlagSet) register(path string, f flag) {
 	c.watcher.Add(filename)
 }
 
-var defaultFlagSet = NewFlagSet("")
+var defaultFlagSet = NewFlagSet("/etc/config")
 
 type StringFlag struct {
 	key   string
@@ -163,6 +161,7 @@ func (f *BoolFlag) set(bytes []byte) {
 
 func (f *BoolFlag) setDefault() {
 	f.value.Store(f.def)
+	info("Set BoolFlag %v to default: %v.", f.key, f.def)
 }
 
 func (f *BoolFlag) Get() bool {
@@ -201,8 +200,8 @@ func (f *IntFlag) set(bytes []byte) {
 }
 
 func (f *IntFlag) setDefault() {
-	info("Set IntFlag %v to default: %v.", f.key, f.def)
 	f.value.Store(f.def)
+	info("Set IntFlag %v to default: %v.", f.key, f.def)
 }
 
 func (f *IntFlag) Get() int {
