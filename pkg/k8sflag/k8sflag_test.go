@@ -9,7 +9,7 @@ import (
 )
 
 func TestFlagWithDefault(t *testing.T) {
-	config, dir := tempConfigMap()
+	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
 
 	flag := config.String("name", "nobody")
@@ -21,7 +21,7 @@ func TestFlagWithDefault(t *testing.T) {
 }
 
 func TestFlagWithConfig(t *testing.T) {
-	config, dir := tempConfigMap()
+	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
 	writeConfig(dir, "name", "joe")
 
@@ -34,7 +34,7 @@ func TestFlagWithConfig(t *testing.T) {
 }
 
 func TestFlagConfigCreate(t *testing.T) {
-	config, dir := tempConfigMap()
+	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
 
 	flag := config.String("name", "nobody")
@@ -54,7 +54,7 @@ func TestFlagConfigCreate(t *testing.T) {
 }
 
 func TestFlagConfigChange(t *testing.T) {
-	config, dir := tempConfigMap()
+	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
 	writeConfig(dir, "name", "sally")
 
@@ -75,7 +75,7 @@ func TestFlagConfigChange(t *testing.T) {
 }
 
 func TestFlagConfigRemove(t *testing.T) {
-	config, dir := tempConfigMap()
+	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
 	writeConfig(dir, "name", "joe")
 
@@ -96,7 +96,7 @@ func TestFlagConfigRemove(t *testing.T) {
 }
 
 func TestStringEmpty(t *testing.T) {
-	config, dir := tempConfigMap()
+	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
 
 	flag := config.String("name", "")
@@ -108,7 +108,7 @@ func TestStringEmpty(t *testing.T) {
 }
 
 func TestBoolTrue(t *testing.T) {
-	config, dir := tempConfigMap()
+	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
 	writeConfig(dir, "should", "true")
 
@@ -121,7 +121,7 @@ func TestBoolTrue(t *testing.T) {
 }
 
 func TestBoolFalse(t *testing.T) {
-	config, dir := tempConfigMap()
+	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
 	writeConfig(dir, "should", "false")
 
@@ -134,7 +134,7 @@ func TestBoolFalse(t *testing.T) {
 }
 
 func TestBoolEmpty(t *testing.T) {
-	config, dir := tempConfigMap()
+	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
 	writeConfig(dir, "should", "")
 
@@ -147,7 +147,7 @@ func TestBoolEmpty(t *testing.T) {
 }
 
 func TestIntValid(t *testing.T) {
-	config, dir := tempConfigMap()
+	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
 	writeConfig(dir, "count", "1")
 
@@ -160,7 +160,7 @@ func TestIntValid(t *testing.T) {
 }
 
 func TestIntInvalid(t *testing.T) {
-	config, dir := tempConfigMap()
+	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
 	writeConfig(dir, "count", "wrong")
 
@@ -172,12 +172,12 @@ func TestIntInvalid(t *testing.T) {
 	}
 }
 
-func tempConfigMap() (*ConfigMap, string) {
+func tempFlagSet() (*FlagSet, string) {
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		panic(err)
 	}
-	return NewConfigMap(dir), dir
+	return NewFlagSet(dir), dir
 }
 
 func writeConfig(dir, key, value string) {

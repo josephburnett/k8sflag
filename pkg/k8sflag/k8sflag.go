@@ -16,18 +16,18 @@ type flag interface {
 	setDefault()
 }
 
-type ConfigMap struct {
+type FlagSet struct {
 	path    []string
 	watcher *fsnotify.Watcher
 	watches map[string]flag
 }
 
-func NewConfigMap(path string) *ConfigMap {
+func NewFlagSet(path string) *FlagSet {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		panic(err)
 	}
-	c := &ConfigMap{
+	c := &FlagSet{
 		path:    filepath.SplitList(path),
 		watcher: w,
 		watches: make(map[string]flag),
@@ -60,7 +60,7 @@ func NewConfigMap(path string) *ConfigMap {
 	return c
 }
 
-func (c *ConfigMap) register(path string, f flag) {
+func (c *FlagSet) register(path string, f flag) {
 	p := filepath.SplitList(path)
 	p = append(c.path, p...)
 	filename := filepath.Join(p...)
@@ -81,14 +81,14 @@ func (c *ConfigMap) register(path string, f flag) {
 	c.watcher.Add(filename)
 }
 
-var defaultConfigMap = NewConfigMap("")
+var defaultFlagSet = NewFlagSet("")
 
 type StringFlag struct {
 	value atomic.Value
 	def   string
 }
 
-func (c *ConfigMap) String(path string, def string) *StringFlag {
+func (c *FlagSet) String(path string, def string) *StringFlag {
 	s := &StringFlag{
 		def: def,
 	}
@@ -98,7 +98,7 @@ func (c *ConfigMap) String(path string, def string) *StringFlag {
 }
 
 func String(path, def string) *StringFlag {
-	return defaultConfigMap.String(path, def)
+	return defaultFlagSet.String(path, def)
 }
 
 func (f *StringFlag) set(b []byte) {
@@ -121,7 +121,7 @@ type BoolFlag struct {
 	def   bool
 }
 
-func (c *ConfigMap) Bool(path string, def bool) *BoolFlag {
+func (c *FlagSet) Bool(path string, def bool) *BoolFlag {
 	b := &BoolFlag{
 		def: def,
 	}
@@ -131,7 +131,7 @@ func (c *ConfigMap) Bool(path string, def bool) *BoolFlag {
 }
 
 func Bool(path string, def bool) *BoolFlag {
-	return defaultConfigMap.Bool(path, def)
+	return defaultFlagSet.Bool(path, def)
 }
 
 func (f *BoolFlag) set(bytes []byte) {
@@ -158,7 +158,7 @@ type IntFlag struct {
 	def   int
 }
 
-func (c *ConfigMap) Int(path string, def int) *IntFlag {
+func (c *FlagSet) Int(path string, def int) *IntFlag {
 	i := &IntFlag{
 		def: def,
 	}
@@ -168,7 +168,7 @@ func (c *ConfigMap) Int(path string, def int) *IntFlag {
 }
 
 func Int(path string, def int) *IntFlag {
-	return defaultConfigMap.Int(path, def)
+	return defaultFlagSet.Int(path, def)
 }
 
 func (f *IntFlag) set(bytes []byte) {
