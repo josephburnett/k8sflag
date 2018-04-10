@@ -172,6 +172,51 @@ func TestIntInvalid(t *testing.T) {
 	}
 }
 
+func TestStringRequired(t *testing.T) {
+	config, dir := tempFlagSet()
+	defer os.RemoveAll(dir)
+
+	defer func() {
+		if r := recover(); r != nil {
+			// expected
+		} else {
+			t.Fatalf("Expected panic. Did not panic.")
+		}
+	}()
+
+	config.String("required", "").MustGet()
+}
+
+func TestBoolRequired(t *testing.T) {
+	config, dir := tempFlagSet()
+	defer os.RemoveAll(dir)
+
+	defer func() {
+		if r := recover(); r != nil {
+			// expected
+		} else {
+			t.Fatalf("Expected panic. Did not panic.")
+		}
+	}()
+
+	config.Bool("required", false).MustGet()
+}
+
+func TestIntRequired(t *testing.T) {
+	config, dir := tempFlagSet()
+	defer os.RemoveAll(dir)
+
+	defer func() {
+		if r := recover(); r != nil {
+			// expected
+		} else {
+			t.Fatalf("Expected panic. Did not panic.")
+		}
+	}()
+
+	config.Int("required", 0).MustGet()
+}
+
 func tempFlagSet() (*FlagSet, string) {
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {

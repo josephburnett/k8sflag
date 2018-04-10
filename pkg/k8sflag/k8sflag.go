@@ -1,6 +1,7 @@
 package k8sflag
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -45,6 +46,7 @@ func NewFlagSet(path string) *FlagSet {
 		watches: make(map[string]flag),
 	}
 	go func() {
+		defer w.Close()
 		for {
 			select {
 			case event := <-c.watcher.Events:
@@ -94,21 +96,24 @@ func (c *FlagSet) register(key string, f flag) {
 var defaultFlagSet = NewFlagSet("/etc/config")
 
 type StringFlag struct {
-	key   string
-	value atomic.Value
-	def   string
+	key       string
+	value     atomic.Value
+	def       string
+	defaulted bool
 }
 
 type BoolFlag struct {
-	key   string
-	value atomic.Value
-	def   bool
+	key       string
+	value     atomic.Value
+	def       bool
+	defaulted bool
 }
 
 type IntFlag struct {
-	key   string
-	value atomic.Value
-	def   int
+	key       string
+	value     atomic.Value
+	def       int
+	defaulted bool
 }
 
 func (c *FlagSet) String(key string, def string) *StringFlag {
@@ -183,16 +188,19 @@ func (f *IntFlag) set(bytes []byte) {
 
 func (f *StringFlag) setDefault() {
 	f.value.Store(f.def)
+	f.defaulted = true
 	info("Set StringFlag %v to default: %v.", f.key, f.def)
 }
 
 func (f *BoolFlag) setDefault() {
 	f.value.Store(f.def)
+	f.defaulted = true
 	info("Set BoolFlag %v to default: %v.", f.key, f.def)
 }
 
 func (f *IntFlag) setDefault() {
 	f.value.Store(f.def)
+	f.defaulted = true
 	info("Set IntFlag %v to default: %v.", f.key, f.def)
 }
 
@@ -206,4 +214,25 @@ func (f *BoolFlag) Get() bool {
 
 func (f *IntFlag) Get() int {
 	return f.value.Load().(int)
+}
+
+func (f *StringFlag) MustGet() string {
+	if f.defaulted {
+		panic(fmt.Sprintf("StringFlag %v is required.", f.key))
+	}
+	return f.Get()
+}
+
+func (f *BoolFlag) MustGet() bool {
+	if f.defaulted {
+		panic(fmt.Sprintf("BoolFlag %v is required.", f.key))
+	}
+	return f.Get()
+}
+
+func (f *IntFlag) MustGet() int {
+	if f.defaulted {
+		panic(fmt.Sprintf("IntFlag %v is required.", f.key))
+	}
+	return f.Get()
 }
