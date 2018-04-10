@@ -99,6 +99,18 @@ type StringFlag struct {
 	def   string
 }
 
+type BoolFlag struct {
+	key   string
+	value atomic.Value
+	def   bool
+}
+
+type IntFlag struct {
+	key   string
+	value atomic.Value
+	def   int
+}
+
 func (c *FlagSet) String(key string, def string) *StringFlag {
 	s := &StringFlag{
 		key: key,
@@ -107,31 +119,6 @@ func (c *FlagSet) String(key string, def string) *StringFlag {
 	s.value.Store(def)
 	c.register(key, flag(s))
 	return s
-}
-
-func String(key, def string) *StringFlag {
-	return defaultFlagSet.String(key, def)
-}
-
-func (f *StringFlag) set(b []byte) {
-	s := string(b)
-	f.value.Store(s)
-	info("Set StringFlag %v: %v.", f.key, s)
-}
-
-func (f *StringFlag) setDefault() {
-	f.value.Store(f.def)
-	info("Set StringFlag %v to default: %v.", f.key, f.def)
-}
-
-func (f *StringFlag) Get() string {
-	return f.value.Load().(string)
-}
-
-type BoolFlag struct {
-	key   string
-	value atomic.Value
-	def   bool
 }
 
 func (c *FlagSet) Bool(key string, def bool) *BoolFlag {
@@ -144,8 +131,32 @@ func (c *FlagSet) Bool(key string, def bool) *BoolFlag {
 	return b
 }
 
+func (c *FlagSet) Int(key string, def int) *IntFlag {
+	i := &IntFlag{
+		key: key,
+		def: def,
+	}
+	i.value.Store(def)
+	c.register(key, flag(i))
+	return i
+}
+
+func String(key, def string) *StringFlag {
+	return defaultFlagSet.String(key, def)
+}
+
 func Bool(key string, def bool) *BoolFlag {
 	return defaultFlagSet.Bool(key, def)
+}
+
+func Int(key string, def int) *IntFlag {
+	return defaultFlagSet.Int(key, def)
+}
+
+func (f *StringFlag) set(b []byte) {
+	s := string(b)
+	f.value.Store(s)
+	info("Set StringFlag %v: %v.", f.key, s)
 }
 
 func (f *BoolFlag) set(bytes []byte) {
@@ -159,35 +170,6 @@ func (f *BoolFlag) set(bytes []byte) {
 	info("Set BoolFlag %v: %v.", f.key, b)
 }
 
-func (f *BoolFlag) setDefault() {
-	f.value.Store(f.def)
-	info("Set BoolFlag %v to default: %v.", f.key, f.def)
-}
-
-func (f *BoolFlag) Get() bool {
-	return f.value.Load().(bool)
-}
-
-type IntFlag struct {
-	key   string
-	value atomic.Value
-	def   int
-}
-
-func (c *FlagSet) Int(key string, def int) *IntFlag {
-	i := &IntFlag{
-		key: key,
-		def: def,
-	}
-	i.value.Store(def)
-	c.register(key, flag(i))
-	return i
-}
-
-func Int(key string, def int) *IntFlag {
-	return defaultFlagSet.Int(key, def)
-}
-
 func (f *IntFlag) set(bytes []byte) {
 	s := string(bytes)
 	i, err := strconv.Atoi(s)
@@ -199,9 +181,27 @@ func (f *IntFlag) set(bytes []byte) {
 	info("Set IntFlag %v: %v.", f.key, i)
 }
 
+func (f *StringFlag) setDefault() {
+	f.value.Store(f.def)
+	info("Set StringFlag %v to default: %v.", f.key, f.def)
+}
+
+func (f *BoolFlag) setDefault() {
+	f.value.Store(f.def)
+	info("Set BoolFlag %v to default: %v.", f.key, f.def)
+}
+
 func (f *IntFlag) setDefault() {
 	f.value.Store(f.def)
 	info("Set IntFlag %v to default: %v.", f.key, f.def)
+}
+
+func (f *StringFlag) Get() string {
+	return f.value.Load().(string)
+}
+
+func (f *BoolFlag) Get() bool {
+	return f.value.Load().(bool)
 }
 
 func (f *IntFlag) Get() int {
