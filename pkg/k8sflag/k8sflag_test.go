@@ -151,7 +151,7 @@ func TestIntValid(t *testing.T) {
 	defer os.RemoveAll(dir)
 	writeConfig(dir, "count", "1")
 
-	flag := config.Int("count", 0)
+	flag := config.Int32("count", 0)
 
 	count := flag.Get()
 	if count != 1 {
@@ -164,7 +164,7 @@ func TestIntInvalid(t *testing.T) {
 	defer os.RemoveAll(dir)
 	writeConfig(dir, "count", "wrong")
 
-	flag := config.Int("count", 0)
+	flag := config.Int32("count", 0)
 
 	count := flag.Get()
 	if count != 0 {
@@ -214,7 +214,7 @@ func TestIntRequired(t *testing.T) {
 		}
 	}()
 
-	config.Int("required", 0, Required).Get()
+	config.Int32("required", 0, Required).Get()
 }
 
 func tempFlagSet() (*FlagSet, string) {

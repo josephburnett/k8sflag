@@ -137,9 +137,9 @@ type BoolFlag struct {
 	def bool
 }
 
-type IntFlag struct {
+type Int32Flag struct {
 	flagCommon
-	def int
+	def int32
 }
 
 func (c *FlagSet) String(key string, def string, options ...Option) *StringFlag {
@@ -166,8 +166,8 @@ func (c *FlagSet) Bool(key string, def bool, options ...Option) *BoolFlag {
 	return b
 }
 
-func (c *FlagSet) Int(key string, def int, options ...Option) *IntFlag {
-	i := &IntFlag{}
+func (c *FlagSet) Int32(key string, def int32, options ...Option) *Int32Flag {
+	i := &Int32Flag{}
 	i.key = key
 	i.def = def
 	i.verbose = c.verbose
@@ -186,8 +186,8 @@ func Bool(key string, def bool) *BoolFlag {
 	return defaultFlagSet.Bool(key, def)
 }
 
-func Int(key string, def int) *IntFlag {
-	return defaultFlagSet.Int(key, def)
+func Int32(key string, def int32) *Int32Flag {
+	return defaultFlagSet.Int32(key, def)
 }
 
 func (f *StringFlag) set(b []byte) error {
@@ -208,14 +208,14 @@ func (f *BoolFlag) set(bytes []byte) error {
 	return nil
 }
 
-func (f *IntFlag) set(bytes []byte) error {
+func (f *Int32Flag) set(bytes []byte) error {
 	s := string(bytes)
 	i, err := strconv.Atoi(s)
 	if err != nil {
 		return err
 	}
-	f.value.Store(i)
-	info("Set IntFlag %v: %v.", f.key, i)
+	f.value.Store(int32(i))
+	info("Set Int32Flag %v: %v.", f.key, i)
 	return nil
 }
 
@@ -229,9 +229,9 @@ func (f *BoolFlag) setDefault() {
 	info("Set BoolFlag %v to default: %v.", f.key, f.def)
 }
 
-func (f *IntFlag) setDefault() {
+func (f *Int32Flag) setDefault() {
 	f.value.Store(f.def)
-	info("Set IntFlag %v to default: %v.", f.key, f.def)
+	info("Set Int32Flag %v to default: %v.", f.key, f.def)
 }
 
 func (f *StringFlag) Get() string {
@@ -242,8 +242,8 @@ func (f *BoolFlag) Get() bool {
 	return f.value.Load().(bool)
 }
 
-func (f *IntFlag) Get() int {
-	return f.value.Load().(int)
+func (f *Int32Flag) Get() int32 {
+	return f.value.Load().(int32)
 }
 
 func hasOption(option Option, options []Option) bool {
