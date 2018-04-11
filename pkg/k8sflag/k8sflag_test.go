@@ -184,7 +184,7 @@ func TestStringRequired(t *testing.T) {
 		}
 	}()
 
-	config.String("required", "").MustGet()
+	config.String("required", "", Required).Get()
 }
 
 func TestBoolRequired(t *testing.T) {
@@ -199,7 +199,7 @@ func TestBoolRequired(t *testing.T) {
 		}
 	}()
 
-	config.Bool("required", false).MustGet()
+	config.Bool("required", false, Required).Get()
 }
 
 func TestIntRequired(t *testing.T) {
@@ -214,7 +214,7 @@ func TestIntRequired(t *testing.T) {
 		}
 	}()
 
-	config.Int("required", 0).MustGet()
+	config.Int("required", 0, Required).Get()
 }
 
 func tempFlagSet() (*FlagSet, string) {

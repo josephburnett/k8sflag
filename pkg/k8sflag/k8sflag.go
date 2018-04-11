@@ -12,30 +12,30 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-var Verbose = false
+type Option int
 
-func verbose(msg string, params ...interface{}) {
-	if Verbose {
-		log.Printf(msg, params...)
-	}
-}
-
-func info(msg string, params ...interface{}) {
-	log.Printf(msg, params...)
-}
+const (
+	Verbose  Option = iota
+	Required Option = iota
+)
 
 type flag interface {
-	set([]byte)
+	name() string
+	set([]byte) error
 	setDefault()
+	isRequired() bool
 }
 
 type FlagSet struct {
 	path    []string
 	watcher *fsnotify.Watcher
 	watches map[string]flag
+	verbose bool
 }
 
-func NewFlagSet(path string) *FlagSet {
+var defaultFlagSet = NewFlagSet("/etc/config")
+
+func NewFlagSet(path string, options ...Option) *FlagSet {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		panic(err)
@@ -45,6 +45,7 @@ func NewFlagSet(path string) *FlagSet {
 		watcher: w,
 		watches: make(map[string]flag),
 	}
+	c.watcher.Add(path) // Watch for new files
 	go func() {
 		defer w.Close()
 		for {
@@ -52,25 +53,15 @@ func NewFlagSet(path string) *FlagSet {
 			case event := <-c.watcher.Events:
 				f, ok := c.watches[event.Name]
 				if !ok {
-					verbose("No binding for %v.", event.Name)
+					c.verboseLog("No binding for %v.", event.Name)
 					continue
 				}
-				b, err := ioutil.ReadFile(event.Name)
-				if err != nil {
-					if os.IsNotExist(err) {
-						f.setDefault()
-					} else {
-						verbose("Error reading file: %v", err)
-					}
-					continue
-				}
-				f.set(b)
+				c.setFromFile(f, event.Name)
 			case err := <-c.watcher.Errors:
-				verbose("Error event: %v", err)
+				c.verboseLog("Error event: %v", err)
 			}
 		}
 	}()
-	c.watcher.Add(path) // Watch for new files
 	return c
 }
 
@@ -79,69 +70,110 @@ func (c *FlagSet) register(key string, f flag) {
 	if _, ok := c.watches[filename]; ok {
 		panic("Flag already bound to " + key)
 	}
-	b, err := ioutil.ReadFile(filename)
-	if err != nil {
-		if os.IsNotExist(err) {
-			f.setDefault()
-		} else {
-			verbose("Error reading file: %v", err)
-		}
-	} else {
-		f.set(b)
-	}
+	c.setFromFile(f, filename)
 	c.watches[filename] = f
 	c.watcher.Add(filename)
 }
 
-var defaultFlagSet = NewFlagSet("/etc/config")
+func (c *FlagSet) setFromFile(f flag, filename string) {
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		if f.isRequired() {
+			panic(fmt.Sprintf("Flag %v is required.", f.name()))
+		}
+		if !os.IsNotExist(err) {
+			c.verboseLog("Error reading file: %v", err)
+		}
+		f.setDefault()
+		return
+	}
+	err = f.set(b)
+	if err != nil {
+		if f.isRequired() {
+			panic(fmt.Sprintf("Error reading %v: %v", f.name(), err))
+		}
+		f.setDefault()
+	}
+}
+
+func (c *FlagSet) verboseLog(msg string, params ...interface{}) {
+	if c.verbose {
+		log.Printf(msg, params...)
+	}
+}
+
+func info(msg string, params ...interface{}) {
+	log.Printf(msg, params...)
+}
+
+type flagCommon struct {
+	key      string
+	value    atomic.Value
+	required bool
+	verbose  bool
+}
+
+func (f *flagCommon) name() string {
+	return f.key
+}
+
+func (f *flagCommon) isRequired() bool {
+	return f.required
+}
+
+func (f *flagCommon) verboseLog(msg string, params ...interface{}) {
+	if f.verbose {
+		log.Printf(msg, params...)
+	}
+}
 
 type StringFlag struct {
-	key       string
-	value     atomic.Value
-	def       string
-	defaulted bool
+	flagCommon
+	def string
 }
 
 type BoolFlag struct {
-	key       string
-	value     atomic.Value
-	def       bool
-	defaulted bool
+	flagCommon
+	def bool
 }
 
 type IntFlag struct {
-	key       string
-	value     atomic.Value
-	def       int
-	defaulted bool
+	flagCommon
+	def int
 }
 
-func (c *FlagSet) String(key string, def string) *StringFlag {
-	s := &StringFlag{
-		key: key,
-		def: def,
+func (c *FlagSet) String(key string, def string, options ...Option) *StringFlag {
+	s := &StringFlag{}
+	s.key = key
+	s.verbose = c.verbose
+	s.def = def
+	if hasOption(Required, options) {
+		s.required = true
 	}
-	s.value.Store(def)
 	c.register(key, flag(s))
 	return s
 }
 
-func (c *FlagSet) Bool(key string, def bool) *BoolFlag {
-	b := &BoolFlag{
-		key: key,
-		def: def,
+func (c *FlagSet) Bool(key string, def bool, options ...Option) *BoolFlag {
+	b := &BoolFlag{}
+	b.key = key
+	b.def = def
+	b.verbose = c.verbose
+	if hasOption(Required, options) {
+		b.required = true
 	}
-	b.value.Store(def)
 	c.register(key, flag(b))
 	return b
 }
 
-func (c *FlagSet) Int(key string, def int) *IntFlag {
-	i := &IntFlag{
-		key: key,
-		def: def,
+func (c *FlagSet) Int(key string, def int, options ...Option) *IntFlag {
+	i := &IntFlag{}
+	i.key = key
+	i.def = def
+	i.verbose = c.verbose
+	if hasOption(Required, options) {
+		i.required = true
 	}
-	i.value.Store(def)
 	c.register(key, flag(i))
 	return i
 }
@@ -158,49 +190,47 @@ func Int(key string, def int) *IntFlag {
 	return defaultFlagSet.Int(key, def)
 }
 
-func (f *StringFlag) set(b []byte) {
+func (f *StringFlag) set(b []byte) error {
 	s := string(b)
 	f.value.Store(s)
 	info("Set StringFlag %v: %v.", f.key, s)
+	return nil
 }
 
-func (f *BoolFlag) set(bytes []byte) {
+func (f *BoolFlag) set(bytes []byte) error {
 	s := string(bytes)
 	b, err := strconv.ParseBool(s)
 	if err != nil {
-		verbose("Error parsing BoolFlag %v: %v", f.key, err)
-		return
+		return err
 	}
 	f.value.Store(b)
 	info("Set BoolFlag %v: %v.", f.key, b)
+	return nil
 }
 
-func (f *IntFlag) set(bytes []byte) {
+func (f *IntFlag) set(bytes []byte) error {
 	s := string(bytes)
 	i, err := strconv.Atoi(s)
 	if err != nil {
-		verbose("Error parsing InfFlag %v: %v.", f.key, err)
-		return
+		return err
 	}
 	f.value.Store(i)
 	info("Set IntFlag %v: %v.", f.key, i)
+	return nil
 }
 
 func (f *StringFlag) setDefault() {
 	f.value.Store(f.def)
-	f.defaulted = true
 	info("Set StringFlag %v to default: %v.", f.key, f.def)
 }
 
 func (f *BoolFlag) setDefault() {
 	f.value.Store(f.def)
-	f.defaulted = true
 	info("Set BoolFlag %v to default: %v.", f.key, f.def)
 }
 
 func (f *IntFlag) setDefault() {
 	f.value.Store(f.def)
-	f.defaulted = true
 	info("Set IntFlag %v to default: %v.", f.key, f.def)
 }
 
@@ -216,23 +246,11 @@ func (f *IntFlag) Get() int {
 	return f.value.Load().(int)
 }
 
-func (f *StringFlag) MustGet() string {
-	if f.defaulted {
-		panic(fmt.Sprintf("StringFlag %v is required.", f.key))
+func hasOption(option Option, options []Option) bool {
+	for _, o := range options {
+		if o == option {
+			return true
+		}
 	}
-	return f.Get()
-}
-
-func (f *BoolFlag) MustGet() bool {
-	if f.defaulted {
-		panic(fmt.Sprintf("BoolFlag %v is required.", f.key))
-	}
-	return f.Get()
-}
-
-func (f *IntFlag) MustGet() int {
-	if f.defaulted {
-		panic(fmt.Sprintf("IntFlag %v is required.", f.key))
-	}
-	return f.Get()
+	return false
 }
