@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -65,10 +66,10 @@ func NewFlagSet(path string, options ...Option) *FlagSet {
 	return c
 }
 
-func (c *FlagSet) register(key string, f flag) {
-	filename := filepath.Join(append(c.path, filepath.SplitList(key)...)...)
+func (c *FlagSet) register(f flag) {
+	filename := filepath.Join(append(c.path, filepath.SplitList(f.name())...)...)
 	if _, ok := c.watches[filename]; ok {
-		panic("Flag already bound to " + key)
+		panic("Flag already bound to " + f.name())
 	}
 	c.setFromFile(f, filename)
 	c.watches[filename] = f
@@ -142,52 +143,73 @@ type Int32Flag struct {
 	def int32
 }
 
-func (c *FlagSet) String(key string, def string, options ...Option) *StringFlag {
-	s := &StringFlag{}
-	s.key = key
-	s.verbose = c.verbose
-	s.def = def
+type DurationFlag struct {
+	flagCommon
+	def *time.Duration
+}
+
+func (s *FlagSet) String(key string, def string, options ...Option) *StringFlag {
+	f := &StringFlag{}
+	f.key = key
+	f.verbose = s.verbose
+	f.def = def
 	if hasOption(Required, options) {
-		s.required = true
+		f.required = true
 	}
-	c.register(key, flag(s))
-	return s
+	s.register(flag(f))
+	return f
 }
 
-func (c *FlagSet) Bool(key string, def bool, options ...Option) *BoolFlag {
-	b := &BoolFlag{}
-	b.key = key
-	b.def = def
-	b.verbose = c.verbose
+func (s *FlagSet) Bool(key string, def bool, options ...Option) *BoolFlag {
+	f := &BoolFlag{}
+	f.key = key
+	f.def = def
+	f.verbose = s.verbose
 	if hasOption(Required, options) {
-		b.required = true
+		f.required = true
 	}
-	c.register(key, flag(b))
-	return b
+	s.register(flag(f))
+	return f
 }
 
-func (c *FlagSet) Int32(key string, def int32, options ...Option) *Int32Flag {
-	i := &Int32Flag{}
-	i.key = key
-	i.def = def
-	i.verbose = c.verbose
+func (s *FlagSet) Int32(key string, def int32, options ...Option) *Int32Flag {
+	f := &Int32Flag{}
+	f.key = key
+	f.def = def
+	f.verbose = s.verbose
 	if hasOption(Required, options) {
-		i.required = true
+		f.required = true
 	}
-	c.register(key, flag(i))
-	return i
+	s.register(flag(f))
+	return f
 }
 
-func String(key, def string) *StringFlag {
-	return defaultFlagSet.String(key, def)
+func (s *FlagSet) Duration(key string, def *time.Duration, options ...Option) *DurationFlag {
+	f := &DurationFlag{}
+	f.key = key
+	f.def = def
+	f.verbose = s.verbose
+	if hasOption(Required, options) {
+		f.required = true
+	}
+	s.register(flag(f))
+	return f
 }
 
-func Bool(key string, def bool) *BoolFlag {
-	return defaultFlagSet.Bool(key, def)
+func String(key, def string, options ...Option) *StringFlag {
+	return defaultFlagSet.String(key, def, options...)
 }
 
-func Int32(key string, def int32) *Int32Flag {
-	return defaultFlagSet.Int32(key, def)
+func Bool(key string, def bool, options ...Option) *BoolFlag {
+	return defaultFlagSet.Bool(key, def, options...)
+}
+
+func Int32(key string, def int32, options ...Option) *Int32Flag {
+	return defaultFlagSet.Int32(key, def, options...)
+}
+
+func Duration(key string, def *time.Duration, options ...Option) *DurationFlag {
+	return defaultFlagSet.Duration(key, def, options...)
 }
 
 func (f *StringFlag) set(b []byte) error {
@@ -219,6 +241,17 @@ func (f *Int32Flag) set(bytes []byte) error {
 	return nil
 }
 
+func (f *DurationFlag) set(bytes []byte) error {
+	s := string(bytes)
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return err
+	}
+	f.value.Store(&d)
+	info("Set DurationFlag %v: %v", f.key, d)
+	return nil
+}
+
 func (f *StringFlag) setDefault() {
 	f.value.Store(f.def)
 	info("Set StringFlag %v to default: %v.", f.key, f.def)
@@ -234,6 +267,11 @@ func (f *Int32Flag) setDefault() {
 	info("Set Int32Flag %v to default: %v.", f.key, f.def)
 }
 
+func (f *DurationFlag) setDefault() {
+	f.value.Store(f.def)
+	info("Set DurationFlag %v to default: %v.", f.key, f.def)
+}
+
 func (f *StringFlag) Get() string {
 	return f.value.Load().(string)
 }
@@ -244,6 +282,10 @@ func (f *BoolFlag) Get() bool {
 
 func (f *Int32Flag) Get() int32 {
 	return f.value.Load().(int32)
+}
+
+func (f *DurationFlag) Get() *time.Duration {
+	return f.value.Load().(*time.Duration)
 }
 
 func hasOption(option Option, options []Option) bool {

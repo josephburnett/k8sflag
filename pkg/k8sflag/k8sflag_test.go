@@ -172,6 +172,46 @@ func TestIntInvalid(t *testing.T) {
 	}
 }
 
+func TestDurationEmpty(t *testing.T) {
+	config, dir := tempFlagSet()
+	defer os.RemoveAll(dir)
+	writeConfig(dir, "duration", "")
+	want := time.Second
+
+	flag := config.Duration("duration", &want)
+
+	got := flag.Get()
+	if *got != want {
+		t.Fatalf("Incorrect duration. Wanted %v. Got %v.", want, got)
+	}
+}
+
+func TestDurationMinutes(t *testing.T) {
+	config, dir := tempFlagSet()
+	defer os.RemoveAll(dir)
+	writeConfig(dir, "duration", "5m")
+	want := 5 * time.Minute
+
+	flag := config.Duration("duration", nil)
+
+	got := flag.Get()
+	if *got != want {
+		t.Fatalf("Incorrect duration. Wanted %v. Got %v.", want, got)
+	}
+}
+
+func TestDurationNil(t *testing.T) {
+	config, dir := tempFlagSet()
+	defer os.RemoveAll(dir)
+
+	flag := config.Duration("duration", nil)
+
+	got := flag.Get()
+	if got != nil {
+		t.Fatalf("Incorrect duration. Wanted nil. Got %v.", got)
+	}
+}
+
 func TestStringRequired(t *testing.T) {
 	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
@@ -215,6 +255,21 @@ func TestIntRequired(t *testing.T) {
 	}()
 
 	config.Int32("required", 0, Required).Get()
+}
+
+func TestDurationRequired(t *testing.T) {
+	config, dir := tempFlagSet()
+	defer os.RemoveAll(dir)
+
+	defer func() {
+		if r := recover(); r != nil {
+			// expected
+		} else {
+			t.Fatalf("Expected panic. Did not panic.")
+		}
+	}()
+
+	config.Duration("required", nil, Required).Get()
 }
 
 func tempFlagSet() (*FlagSet, string) {
