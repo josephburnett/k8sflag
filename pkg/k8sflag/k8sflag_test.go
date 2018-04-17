@@ -37,7 +37,7 @@ func TestFlagConfigCreate(t *testing.T) {
 	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
 
-	flag := config.String("name", "nobody")
+	flag := config.String("name", "nobody", Dynamic)
 
 	name := flag.Get()
 	if name != "nobody" {
@@ -58,7 +58,7 @@ func TestFlagConfigChange(t *testing.T) {
 	defer os.RemoveAll(dir)
 	writeConfig(dir, "name", "sally")
 
-	flag := config.String("name", "nobody")
+	flag := config.String("name", "nobody", Dynamic)
 
 	name := flag.Get()
 	if name != "sally" {
@@ -79,7 +79,7 @@ func TestFlagConfigRemove(t *testing.T) {
 	defer os.RemoveAll(dir)
 	writeConfig(dir, "name", "joe")
 
-	flag := config.String("name", "nobody")
+	flag := config.String("name", "nobody", Dynamic)
 
 	name := flag.Get()
 	if name != "joe" {
@@ -92,6 +92,19 @@ func TestFlagConfigRemove(t *testing.T) {
 	name = flag.Get()
 	if name != "nobody" {
 		t.Fatalf("Incorrect defaulted name. Wanted nobody. Got %v.", name)
+	}
+}
+
+func TestFlagNotDynamic(t *testing.T) {
+	config, dir := tempFlagSet()
+	defer os.RemoveAll(dir)
+
+	flag := config.String("name", "nobody") // not Dynamic
+	writeConfig(dir, "name", "joe")
+
+	name := flag.Get()
+	if name != "nobody" {
+		t.Fatalf("Incorrect name. Wanted nobody. Got %v.", name)
 	}
 }
 
