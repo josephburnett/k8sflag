@@ -1,49 +1,68 @@
 # k8sflag
-Dynamic flag-style bindings for Kubernetes ConfigMaps.
+Flag-style bindings for Kubernetes ConfigMaps.
+
+## Rationale
+
+There are [a lot of ways](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/) to consume ConfigMap entries from a Pod--environment variables, volume mounts and direct API access.  There is also a layer of code to write which brings the configuration values into the application code where it's needed.  The `k8sflag` library provides a binding layer that brings ConfigMap values into a Golang application with a familiar, flag-style interface.
 
 ## Example
 
-`config.yaml`:
-
 ```yaml
-apiVersion: v1
 kind: ConfigMap
-metadata:
-  name: hello-config
 data:
-  hello.name: "world"
+  name: "world"
 ```
-
-`pod.yaml`:
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: hello-pod
-spec:
-  containers:
-      ...
-      volumeMounts:
-        - name: hello-config-volume
-          mountPath: /etc/config
-  volumes:
-    - name: hello-config-volume
-      configMap:
-        name: hello-config
-```
-
-`hello.go`:
 
 ```go
-var name = k8sflag.String("hello.name", "nobody")
+var name = k8sflag.String("name", "nobody")
+fmt.Printf("hello %v", name.Get())
+--> hello world
+```
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello %v.\n", name.Get())
-}
+Flags can be static or dynamically bound.  A dynamic binding will be updated when the underlying ConfigMap is updates.  This can be useful for flipping feature flags without redeploying the binary.
 
-func main() {
-	http.HandleFunc("/", handler)
-	http.ListenAndServe(":8080", nil)
-}
+```yaml
+kind: ConfigMap
+data:
+  name: "world"
+```
+
+```go
+var name = k8sflag.String("name", "nobody", k8sflag.Dynamic)
+fmt.Printf("hello %v", name.Get())
+--> hello world
+```
+
+```yaml
+kind: ConfigMap
+data:
+  name: "mundo"  # changed
+```
+
+```go
+fmt.Printf("hello %v", name.Get())
+--> hello mundo
+```
+
+## Try it out
+
+```bash
+$ kubectl create -f example/config.yaml
+$ kubectl create -f example/pod.yaml
+```
+
+From a node in cluster:
+```
+node $ curl http://$POD_IP
+--> hello world
+```
+
+Edit `config.yaml` and change `hello.name` property from `world` to `mundo`:
+```
+$ kubectl apply -f example/config.yaml
+```
+
+```
+node $ curl http://$POD_IP
+--> hello mundo
 ```
