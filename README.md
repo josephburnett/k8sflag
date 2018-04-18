@@ -77,3 +77,7 @@ $ kubectl apply -f example/config.yaml
 node $ curl http://$POD_IP
 --> hello mundo
 ```
+
+## Implementation
+
+The current implementation uses a volume mount to provide configuration because volume mounts are dynamically updated and don't require a Kubernetes client.  But with a Kuberenetes client, the same interface can be implemented without volume mounting.
