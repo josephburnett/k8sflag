@@ -185,6 +185,32 @@ func TestIntInvalid(t *testing.T) {
 	}
 }
 
+func TestFloatValid(t *testing.T) {
+	config, dir := tempFlagSet()
+	defer os.RemoveAll(dir)
+	writeConfig(dir, "rate", "0.1")
+
+	flag := config.Float64("rate", 0.0)
+
+	rate := flag.Get()
+	if rate != 0.1 {
+		t.Fatalf("Incorrect rate. Wanted 0.1. Got %v.", rate)
+	}
+}
+
+func TestFloatInvalid(t *testing.T) {
+	config, dir := tempFlagSet()
+	defer os.RemoveAll(dir)
+	writeConfig(dir, "rate", "wrong")
+
+	flag := config.Float64("rate", 0.0)
+
+	rate := flag.Get()
+	if rate != 0.0 {
+		t.Fatalf("Incorrect rate. Wanted 0.0. Got %v.", rate)
+	}
+}
+
 func TestDurationEmpty(t *testing.T) {
 	config, dir := tempFlagSet()
 	defer os.RemoveAll(dir)
