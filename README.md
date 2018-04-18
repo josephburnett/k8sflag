@@ -19,6 +19,8 @@ fmt.Printf("hello %v", name.Get())
 --> hello world
 ```
 
+### Dynamic Option
+
 Flags can be static or dynamically bound.  A dynamic binding will be updated when the underlying ConfigMap is updates.  This can be useful for flipping feature flags without redeploying the binary.
 
 ```yaml
@@ -42,6 +44,15 @@ data:
 ```go
 fmt.Printf("hello %v", name.Get())
 --> hello mundo
+```
+
+### Required Option
+
+Flags can also be required.  If a configuration value is not present, the flag will immediately panic.
+
+```go
+var name = k8sflag.String("missing-property", "", k8sflag.Required)
+--> PANIC
 ```
 
 ## Try it out
